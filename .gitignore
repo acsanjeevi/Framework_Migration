@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Build outputs
+dist/
+build/
+frontend/dist/
+
+# Runtime workspace (uploaded files, extracted ZIPs)
+backend/workspace/
+
+# Lock files (managed per-package)
+package-lock.json
+
+# Temp / OS
+*.tmp
+~$*
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*

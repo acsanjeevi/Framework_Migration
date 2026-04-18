@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
+import path from 'path';
 import archiver from 'archiver';
 import { assignUploadSession, handleUpload } from '../middleware/upload.middleware';
 import { validateUploadBody } from '../middleware/validation.middleware';
 import { enqueueJob, migrationQueue, MigrationJobData } from '../../queue/MigrationQueue';
 import { ResultStore } from '../../store/ResultStore';
+import { extractZipToInput, copyFilesToInput, FolderNode } from '../../workspace/WorkspaceManager';
 
 const router = Router();
 
@@ -19,9 +21,9 @@ router.post(
   handleUpload,
   validateUploadBody,
   async (req: Request, res: Response): Promise<void> => {
-    const files = req.files as Express.Multer.File[];
+    const uploadedFiles = req.files as Express.Multer.File[];
 
-    if (!files || files.length === 0) {
+    if (!uploadedFiles || uploadedFiles.length === 0) {
       res.status(400).json({ status: 'error', message: 'No files uploaded' });
       return;
     }
@@ -51,12 +53,44 @@ router.post(
           }
         : undefined;
 
+    // ── ZIP extraction / INPUT workspace ──────────────────────────────────────
+    const zipFiles   = uploadedFiles.filter((f) => path.extname(f.originalname).toLowerCase() === '.zip');
+    const plainFiles = uploadedFiles.filter((f) => path.extname(f.originalname).toLowerCase() !== '.zip');
+
+    let processFiles: Array<{ fileName: string; filePath: string }> = [];
+    let inputFolder: FolderNode[] = [];
+    let skippedFiles: string[] = [];
+    let extractedFileCount = 0;
+
+    if (zipFiles.length > 0) {
+      // Use the first ZIP (single-zip workflow)
+      const result = extractZipToInput(zipFiles[0].path, batchId);
+      inputFolder        = result.tree;
+      skippedFiles       = result.skippedFiles;
+      extractedFileCount = result.extractedFiles.length;
+      processFiles       = result.extractedFiles.map((rel) => ({
+        fileName: path.basename(rel),
+        filePath: path.join(result.inputDir, rel),
+      }));
+    } else {
+      const result = copyFilesToInput(plainFiles, batchId);
+      inputFolder  = result.tree;
+      processFiles = plainFiles.map((f) => ({ fileName: f.originalname, filePath: f.path }));
+      extractedFileCount = processFiles.length;
+    }
+
+    if (processFiles.length === 0) {
+      res.status(400).json({
+        status: 'error',
+        message: 'No supported files found. Allowed types: .ts .js .java .py .feature .xml',
+        skippedFiles,
+      });
+      return;
+    }
+
     const jobData: MigrationJobData = {
       batchId,
-      files: files.map((f) => ({
-        fileName: f.originalname,
-        filePath: f.path,
-      })),
+      files: processFiles,
       config: {
         sourceFramework: body.sourceFramework,
         targetLanguage: body.targetLanguage,
@@ -79,11 +113,14 @@ router.post(
     res.status(202).json({
       status: 'accepted',
       jobId: batchId,
-      fileCount: files.length,
-      files: files.map((f) => ({ name: f.originalname, size: f.size })),
+      fileCount: extractedFileCount,
+      files: processFiles.map((f) => ({ name: f.fileName, size: 0 })),
       config: body,
       websocket: `/ws/progress/${batchId}`,
       message: 'Migration job queued — subscribe to websocket for real-time progress',
+      inputFolder,
+      skippedFiles,
+      extractedFileCount,
     });
   }
 );

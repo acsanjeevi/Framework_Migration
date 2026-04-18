@@ -1,0 +1,25 @@
+{
+  "name": "codebase-hackathon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acsanjeevi/Framework_Migration.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/acsanjeevi/Framework_Migration/issues"
+  },
+  "homepage": "https://github.com/acsanjeevi/Framework_Migration#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

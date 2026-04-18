@@ -4,6 +4,7 @@ import { MigrationContext } from '../orchestrator/MigrationContext';
 import { MigrationOrchestrator } from '../orchestrator/MigrationOrchestrator';
 import { progressEmitter } from '../websocket/ProgressEmitter';
 import { ResultStore } from '../store/ResultStore';
+import { writeOutputFiles } from '../workspace/WorkspaceManager';
 
 // ── Job data shape stored in Redis ───────────────────────────────────────────
 export interface MigrationFileEntry {
@@ -41,8 +42,14 @@ export const migrationQueue = new Bull<MigrationJobData>('migration', REDIS_URL,
 });
 
 // ── Queue event listeners (logged; not fatal) ─────────────────────────────────
+// Suppress repetitive Redis connection spam — log once, then stay silent until resolved
+let _redisErrorLogged = false;
 migrationQueue.on('error', (err) => {
-  console.error('[queue] Bull error:', err.message);
+  if (!_redisErrorLogged) {
+    console.warn('[queue] Redis unavailable — queue disabled until Redis starts. Details:', err.message || '(no details)');
+    console.warn('[queue] Start Redis (e.g. redis-server) to enable job processing.');
+    _redisErrorLogged = true;
+  }
 });
 
 migrationQueue.on('failed', (job, err) => {
@@ -122,6 +129,20 @@ migrationQueue.process(async (job: Bull.Job<MigrationJobData>) => {
 
     if (result.overallStatus === 'complete') {
       ResultStore.addFileResult(batchId, ResultStore.fromContext(ctx, 'complete', cicdFileName));
+
+      // Write migrated files to workspace/OUTPUT/<batchId>
+      const outputFiles: Array<{ name: string; content: string }> = [];
+      if (result.output.healedCode) {
+        outputFiles.push({ name: `migrated/${fileEntry.fileName}`, content: result.output.healedCode });
+      }
+      if (result.output.cicdYaml && cicdFileName) {
+        outputFiles.push({ name: `cicd/${cicdFileName}`, content: result.output.cicdYaml });
+      }
+      if (outputFiles.length > 0) {
+        try { writeOutputFiles(batchId, outputFiles); } catch (e) {
+          console.warn('[queue] Could not write output files to workspace:', e);
+        }
+      }
 
       progressEmitter.emit(batchId, {
         type: 'COMPLETE',

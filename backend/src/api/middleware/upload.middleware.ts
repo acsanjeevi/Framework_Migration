@@ -14,10 +14,10 @@ declare global {
   }
 }
 
-const ALLOWED_EXTENSIONS = new Set(['.ts', '.js', '.java', '.py', '.feature', '.xml']);
+const ALLOWED_EXTENSIONS = new Set(['.ts', '.js', '.java', '.py', '.feature', '.xml', '.zip']);
 
 export const UPLOAD_CONFIG = {
-  maxFileSizeBytes: 10 * 1024 * 1024, // 10 MB
+  maxFileSizeBytes: 5 * 1024 * 1024 * 1024, // 5 GB
   maxFiles: 50,
   allowedExtensions: Array.from(ALLOWED_EXTENSIONS),
 };
