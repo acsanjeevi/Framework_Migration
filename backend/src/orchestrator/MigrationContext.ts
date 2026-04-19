@@ -44,4 +44,11 @@ export interface MigrationContext {
     primaryModel: string;
     fallbackModel: string;
   };
+
+  /**
+   * Per-job logger — set by the orchestrator, available to all steps.
+   * Steps can log step-specific events without creating their own logger instances.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _logger?: any;
 }

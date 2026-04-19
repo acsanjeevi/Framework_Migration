@@ -41,31 +41,56 @@ export const migrationQueue = new Bull<MigrationJobData>('migration', REDIS_URL,
   },
 });
 
-// ── Queue event listeners (logged; not fatal) ─────────────────────────────────
-// Suppress repetitive Redis connection spam — log once, then stay silent until resolved
+// ── Redis availability tracking ───────────────────────────────────────────────
+let _redisAvailable = true;
 let _redisErrorLogged = false;
 migrationQueue.on('error', (err) => {
+  _redisAvailable = false;
   if (!_redisErrorLogged) {
-    console.warn('[queue] Redis unavailable — queue disabled until Redis starts. Details:', err.message || '(no details)');
-    console.warn('[queue] Start Redis (e.g. redis-server) to enable job processing.');
+    console.warn('[queue] Redis unavailable — falling back to in-memory processing. Details:', err.message || '(no details)');
+    console.warn('[queue] Start Redis (e.g. redis-server) to enable durable job queuing.');
     _redisErrorLogged = true;
   }
+});
+
+migrationQueue.on('ready', () => {
+  if (!_redisAvailable) {
+    console.info('[queue] Redis reconnected — resuming Bull queue processing.');
+  }
+  _redisAvailable = true;
+  _redisErrorLogged = false;
 });
 
 migrationQueue.on('failed', (job, err) => {
   console.error(`[queue] Job ${job.id} failed:`, err.message);
 });
 
-// ── Processor ────────────────────────────────────────────────────────────────
-migrationQueue.process(async (job: Bull.Job<MigrationJobData>) => {
-  const { batchId, files, config, llmConfig } = job.data;
+/** Returns true when Redis is reachable and Bull is processing normally. */
+export function isQueueReady(): boolean {
+  return _redisAvailable;
+}
+
+// ── Core processor logic (shared by Bull and in-memory fallback) ──────────────
+async function processJobData(data: MigrationJobData): Promise<Array<{ fileName: string; status: string }>> {
+  const { batchId, files, config, llmConfig } = data;
   const orchestrator = new MigrationOrchestrator();
   const results = [];
 
   // Initialise result store for this batch
   ResultStore.initBatch(batchId, config);
 
-  for (const fileEntry of files) {
+  // Delay between files to avoid TPM/RPM rate limits on free-tier LLM APIs.
+  // Configurable via FILE_PROCESS_DELAY_MS env var (default 3000ms).
+  const FILE_DELAY_MS = parseInt(process.env.FILE_PROCESS_DELAY_MS ?? '3000', 10);
+
+  for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+    const fileEntry = files[fileIdx];
+
+    // Stagger requests — skip delay for the first file
+    if (fileIdx > 0 && FILE_DELAY_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, FILE_DELAY_MS));
+    }
+
     let sourceCode: string;
     try {
       sourceCode = fs.readFileSync(fileEntry.filePath, 'utf-8');
@@ -175,17 +200,46 @@ migrationQueue.process(async (job: Bull.Job<MigrationJobData>) => {
   }
 
   return results;
+}
+
+// ── Bull processor — delegates to shared processJobData ──────────────────────
+migrationQueue.process(async (job: Bull.Job<MigrationJobData>) => {
+  return processJobData(job.data);
 });
 
 // ── Public helpers ───────────────────────────────────────────────────────────
 
-/** Enqueue a batch. Throws if Redis is unavailable or times out after 3s. */
+/**
+ * Enqueue a batch migration job.
+ * When Redis is available, the job is placed on the Bull queue for durable processing.
+ * When Redis is unavailable, the job runs immediately in-process as a fallback
+ * so the app stays functional without a Redis instance.
+ */
 export async function enqueueJob(data: MigrationJobData): Promise<Bull.Job<MigrationJobData>> {
-  const timeoutMs = 3000;
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Redis connection timed out after 3s')), timeoutMs)
-  );
-  return Promise.race([migrationQueue.add(data, { jobId: data.batchId }), timeoutPromise]);
+  if (_redisAvailable) {
+    const timeoutMs = 3000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Redis connection timed out after 3s')), timeoutMs)
+    );
+    try {
+      return await Promise.race([migrationQueue.add(data, { jobId: data.batchId }), timeoutPromise]);
+    } catch (err) {
+      _redisAvailable = false;
+      console.warn('[queue] Redis failed during enqueue — switching to in-memory fallback:', (err as Error).message);
+    }
+  }
+
+  // ── In-memory fallback path ──────────────────────────────────────────────
+  console.info(`[queue:fallback] Running job ${data.batchId} in-process (no Redis).`);
+  // Run async, non-blocking — progress events still flow via progressEmitter
+  setImmediate(() => {
+    processJobData(data).catch((err) => {
+      console.error(`[queue:fallback] Job ${data.batchId} error:`, err);
+    });
+  });
+
+  // Return a minimal stub that satisfies the Bull.Job interface for callers
+  return { id: data.batchId, data, opts: {}, queue: migrationQueue } as unknown as Bull.Job<MigrationJobData>;
 }
 
 /** Returns queue depth and Redis connectivity for /health/queue. */

@@ -1,0 +1,61 @@
+project-root/
+│── src/
+│ ├── main/
+│ │ ├── pages/
+│ │ │ ├── legacy/
+│ │ │ │ ├── LoginPage.java
+│ │ │ │ ├── DashboardPage.java
+│ │ │ │ └── BasePage.java
+│ │ │ │
+│ │ │ ├── migrated/
+│ │ │ │ ├── LoginPage.java
+│ │ │ │ ├── DashboardPage.java
+│ │ │ │ └── BasePage.java
+│ │ │ │
+│ │ │ └── common/
+│ │ │ ├── HeaderComponent.java
+│ │ │ ├── FooterComponent.java
+│ │ │ └── SidebarComponent.java
+│ │ │
+│ │ ├── utils/
+│ │ │ ├── DriverFactory.java
+│ │ │ ├── WaitUtils.java
+│ │ │ ├── ScreenshotUtils.java
+│ │ │ └── ConfigReader.java
+│ │ │
+│ │ ├── constants/
+│ │ │ └── FrameworkConstants.java
+│ │ │
+│ │ └── base/
+│ │ ├── BaseTest.java
+│ │ └── BasePage.java
+│
+│── src/test/
+│ ├── tests/
+│ │ ├── legacy/
+│ │ │ ├── LoginTest.java
+│ │ │ └── SmokeSuite.java
+│ │ │
+│ │ ├── migrated/
+│ │ │ ├── LoginTest.java
+│ │ │ └── SmokeSuite.java
+│ │ │
+│ │ └── regression/
+│ │ └── FullRegression.java
+│ │
+│ ├── testdata/
+│ │ ├── legacyData.json
+│ │ ├── migratedData.json
+│ │ └── users.xlsx
+│ │
+│ └── resources/
+│ ├── config.properties
+│ ├── qa.properties
+│ ├── uat.properties
+│ └── prod.properties
+│
+│── reports/
+│── screenshots/
+│── logs/
+│── pom.xml / build.gradle
+└── README.md

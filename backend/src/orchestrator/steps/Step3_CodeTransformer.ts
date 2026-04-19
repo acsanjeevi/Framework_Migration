@@ -15,6 +15,7 @@ export class Step3_CodeTransformer {
   readonly stepName = 'Code Transformation';
 
   private readonly CONFIDENCE_THRESHOLD = 0.85;
+  private readonly MIN_ACCEPTABLE_CONFIDENCE = 0.60;
 
   async run(ctx: MigrationContext): Promise<StepResult> {
     const start = Date.now();
@@ -59,7 +60,7 @@ export class Step3_CodeTransformer {
         targetLanguage: ctx.targetLanguage,
         detectedPattern: ctx.detectedPattern ?? 'BasicSpec',
         sourceCode: ctx.sourceCode,
-      });
+      }, ctx._logger);
     } catch (err: unknown) {
       return makeHaltResult(
         this.stepNumber,
@@ -78,11 +79,11 @@ export class Step3_CodeTransformer {
       );
     }
 
-    if (response.confidence < this.CONFIDENCE_THRESHOLD) {
+    if (response.confidence < this.MIN_ACCEPTABLE_CONFIDENCE) {
       return makeHaltResult(
         this.stepNumber,
         this.stepName,
-        `LLM confidence ${(response.confidence * 100).toFixed(1)}% is below ${(this.CONFIDENCE_THRESHOLD * 100)}% after both Haiku and Sonnet. Human review required.`,
+        `LLM confidence ${(response.confidence * 100).toFixed(1)}% is critically low (< ${(this.MIN_ACCEPTABLE_CONFIDENCE * 100)}%) after both primary and fallback models. Human review required.`,
         Date.now() - start
       );
     }
@@ -91,6 +92,11 @@ export class Step3_CodeTransformer {
     ctx.confidence = response.confidence;
     ctx.agentUsed = response.agentUsed;
 
+    // Tag as low-confidence so the UI can warn the user without blocking the pipeline
+    if (response.lowConfidence || response.confidence < this.CONFIDENCE_THRESHOLD) {
+      ctx.agentUsed = `${response.agentUsed} ⚠ low-confidence`;
+    }
+
     return makePassResult(
       this.stepNumber,
       this.stepName,
@@ -98,6 +104,7 @@ export class Step3_CodeTransformer {
         agentUsed: response.agentUsed,
         confidence: response.confidence,
         escalated: response.escalated,
+        lowConfidence: response.lowConfidence ?? (response.confidence < this.CONFIDENCE_THRESHOLD),
         haikuConfidence: response.primaryConfidence ?? null,
         inputTokens: response.usage.inputTokens,
         outputTokens: response.usage.outputTokens,

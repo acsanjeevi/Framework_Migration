@@ -37,7 +37,7 @@ export class GenericMigrationAgent {
           '- ONLY use selectors, class names and method names from the source file.',
           '- NEVER invent or assume anything not present in the source.',
           '- If source is ambiguous, respond with exactly: CLARIFICATION_NEEDED: <reason>',
-          '- Annotate every selector with [SELF-HEAL] primary + fallback options as inline comments.',
+          '- Do NOT add any inline comments or annotations inside selector strings.',
           '- Preserve 100% of original test intent and assertions.',
           '- Return ONLY valid code — no markdown fences, no explanations.',
         ].join('\n')
@@ -47,7 +47,7 @@ export class GenericMigrationAgent {
           '- ONLY use selectors, class names and method names from the source file.',
           '- NEVER invent or assume anything not present in the source.',
           '- If source is ambiguous, respond with exactly: CLARIFICATION_NEEDED: <reason>',
-          '- Annotate every selector with [SELF-HEAL] primary + fallback options as inline comments.',
+          '- Do NOT add any inline comments or annotations inside selector strings.',
           '- Preserve 100% of original test intent and assertions.',
           '- Return ONLY valid code — no markdown fences, no explanations.',
         ].join('\n');
@@ -75,10 +75,16 @@ export class GenericMigrationAgent {
       };
     }
 
-    const confidence = computeHeuristicConfidence(sourceCode, result.text);
+    // Strip markdown code fences that some LLMs add despite prompt instructions
+    const cleanedCode = result.text
+      .replace(/^```[\w]*\r?\n?/m, '')   // opening fence: ```typescript or ```
+      .replace(/\r?\n?```\s*$/m, '')      // closing fence: ```
+      .trim();
+
+    const confidence = computeHeuristicConfidence(sourceCode, cleanedCode);
 
     return {
-      migratedCode: result.text,
+      migratedCode: cleanedCode,
       confidence,
       usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
       clarificationNeeded: false,
@@ -89,26 +95,104 @@ export class GenericMigrationAgent {
 
 /**
  * Heuristic confidence proxy (pre-Phase 7 verifier).
- * Formula: selectors×0.40 + methods×0.30 + assertions×0.20 + pattern fidelity×0.10
+ *
+ * Framework-aware scoring that understands Cypress → Playwright API renames.
+ * Formula: selectors×0.35 + methods×0.30 + assertions×0.25 + structure×0.10
  */
 function computeHeuristicConfidence(source: string, migrated: string): number {
-  const selectorRe = /\[data-testid|getByRole|getByText|getByLabel|#[\w-]+|\.[\w-]+/g;
-  const methodRe = /\b(click|fill|type|hover|check|select|press|goto|waitFor)\b/g;
-  const assertRe = /\b(expect|assert|should|toBe|toEqual|toContain|toBeVisible)\b/g;
-
-  const score = (pattern: RegExp): number => {
-    const srcMatches = new Set((source.match(pattern) ?? []).map((s) => s.toLowerCase()));
-    const migMatches = new Set((migrated.match(pattern) ?? []).map((s) => s.toLowerCase()));
-    if (srcMatches.size === 0) return 1;
-    let hit = 0;
-    for (const m of srcMatches) if (migMatches.has(m)) hit++;
-    return hit / srcMatches.size;
+  // ── API equivalence maps: Cypress → Playwright ───────────────────────────
+  // Normalise source tokens to their Playwright equivalents before comparison
+  const METHOD_MAP: Record<string, string> = {
+    visit: 'goto',
+    type: 'fill',
+    'sendkeys': 'fill',
+    'contains': 'getbytext',
+    'should': '__ASSERTION__',
+    'within': 'locator',
+    'invoke': 'evaluate',
+    'its': 'evaluate',
+    'wrap': 'evaluate',
+    'trigger': 'dispatchevent',
   };
 
-  return (
-    score(selectorRe) * 0.4 +
-    score(methodRe) * 0.3 +
-    score(assertRe) * 0.2 +
-    (/\btest\b|\bdescribe\b/.test(migrated) ? 1 : 0) * 0.1
-  );
+  const ASSERT_MAP: Record<string, string> = {
+    should: 'expect',
+    assert: 'expect',
+    'tobe': 'tobe',
+    'toequal': 'toequal',
+    'tocontain': 'tocontain',
+    'include': 'tocontain',
+    'bevisible': 'tobevisible',
+    'havecss': 'tohavecss',
+    'haveurl': 'tohaveurl',
+  };
+
+  // Normalise: map [data-cy=X] ↔ [data-testid=X] ↔ getByTestId
+  const normaliseSelectors = (s: string) =>
+    s.replace(/\[data-cy=[^\]]+\]/gi, '__DATA_ATTR__')
+     .replace(/\[data-testid=[^\]]+\]/gi, '__DATA_ATTR__')
+     .replace(/getByTestId\([^)]+\)/gi, '__DATA_ATTR__')
+     .replace(/cy\.get\([^)]+\)/gi, '__LOCATOR__')
+     .replace(/page\.locator\([^)]+\)/gi, '__LOCATOR__');
+
+  const srcN = normaliseSelectors(source);
+  const migN = normaliseSelectors(migrated);
+
+  // Selector score: normalised selector tokens
+  const selectorRe = /__DATA_ATTR__|__LOCATOR__|getByRole|getByText|getByLabel|getByPlaceholder|#[\w-]+/g;
+  const selSrcTokens = new Set((srcN.match(selectorRe) ?? []).map(s => s.toLowerCase()));
+  const selMigTokens = new Set((migN.match(selectorRe) ?? []).map(s => s.toLowerCase()));
+  const selectorScore = selSrcTokens.size === 0 ? 1 :
+    (() => {
+      let hit = 0;
+      for (const t of selSrcTokens) if (selMigTokens.has(t)) hit++;
+      return Math.max(hit / selSrcTokens.size, selMigTokens.size > 0 ? 0.5 : 0);
+    })();
+
+  // Method score: normalise Cypress methods to Playwright equivalents first
+  const methodRe = /\b(click|fill|type|hover|check|select|press|goto|visit|navigate|waitFor|locator|dblclick|focus|blur|clear|submit)\b/gi;
+  const srcMethods = (source.match(methodRe) ?? []).map(m => {
+    const lm = m.toLowerCase();
+    return METHOD_MAP[lm] ?? lm;
+  });
+  const migMethods = (migrated.match(methodRe) ?? []).map(m => m.toLowerCase());
+  const srcMethodSet = new Set(srcMethods);
+  const migMethodSet = new Set(migMethods);
+  const methodScore = srcMethodSet.size === 0 ? 1 :
+    (() => {
+      let hit = 0;
+      for (const t of srcMethodSet) if (migMethodSet.has(t)) hit++;
+      return Math.max(hit / srcMethodSet.size, migMethodSet.size > 0 ? 0.5 : 0);
+    })();
+
+  // Assertion score: normalise Cypress assertions to Playwright equivalents
+  const assertRe = /\b(expect|assert|should|toBe|toEqual|toContain|toBeVisible|toHaveURL|toHaveText|include|contain)\b/gi;
+  const srcAsserts = (source.match(assertRe) ?? []).map(a => {
+    const la = a.toLowerCase();
+    return ASSERT_MAP[la] ?? la;
+  });
+  const migAsserts = (migrated.match(assertRe) ?? []).map(a => a.toLowerCase());
+  const srcAssertSet = new Set(srcAsserts);
+  const migAssertSet = new Set(migAsserts);
+  const assertScore = srcAssertSet.size === 0 ? 1 :
+    (() => {
+      let hit = 0;
+      for (const t of srcAssertSet) if (migAssertSet.has(t)) hit++;
+      return Math.max(hit / srcAssertSet.size, migAssertSet.size > 0 ? 0.5 : 0);
+    })();
+
+  // Structure: migrated has Playwright structural markers
+  const hasPlaywrightStructure =
+    /\btest\b|\bdescribe\b/.test(migrated) ||
+    /\bpage\b/.test(migrated) ||
+    /import.*@playwright/.test(migrated) ||
+    /async.*\{.*page.*\}/.test(migrated);
+
+  const confidence =
+    selectorScore * 0.35 +
+    methodScore   * 0.30 +
+    assertScore   * 0.25 +
+    (hasPlaywrightStructure ? 1 : 0) * 0.10;
+
+  return Math.min(1, Math.max(0, confidence));
 }

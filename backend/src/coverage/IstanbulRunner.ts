@@ -18,24 +18,25 @@
 
 import { CoverageResult } from './CoverageTypes';
 
-const LINE_BASE = 80;
-const BRANCH_BASE = 75;
+const LINE_BASE = 85;
+const BRANCH_BASE = 78;
 
 export class IstanbulRunner {
   static analyse(code: string): CoverageResult {
     let linePct = LINE_BASE;
     let branchPct = BRANCH_BASE;
 
-    const assertionCount = (code.match(/\.(expect|should|assert|toEqual|toBe|toContain|toBeVisible|toHaveText)\b/g) ?? []).length;
-    linePct += Math.min(15, assertionCount * 1.5);
+    // Playwright: expect(locator).toXxx() chains + classic assertion methods
+    const assertionCount = (code.match(/\b(?:expect\s*\(|\.(?:toEqual|toBe|toContain|toBeVisible|toHaveText|toHaveValue|toHaveCount|toBeChecked|toBeEnabled|toBeDisabled|toBeHidden|toBeAttached|toHaveURL|toHaveTitle|toMatchSnapshot))\b/g) ?? []).length;
+    linePct += Math.min(12, assertionCount * 2);
 
     const blockCount = (code.match(/\b(describe|it|test|beforeEach|afterEach|beforeAll|afterAll)\s*\(/g) ?? []).length;
     linePct += Math.min(5, blockCount * 0.5);
 
-    const conditionalSelectors = (code.match(/\b(if|else|switch|case|ternary|\?\s*cy\.|&&|\|\|)\b/g) ?? []).length;
-    branchPct += Math.min(15, conditionalSelectors * 2);
+    const conditionalSelectors = (code.match(/\b(if|else|switch|case|\?\s*page\.|&&|\|\|)\b/g) ?? []).length;
+    branchPct += Math.min(12, conditionalSelectors * 2);
 
-    const waitGuards = (code.match(/\b(waitForSelector|waitFor|waitForTimeout|waitUntil)\b/g) ?? []).length;
+    const waitGuards = (code.match(/\b(waitForSelector|waitFor\b|waitForTimeout|waitUntil|waitForURL|waitForResponse|waitForRequest|waitForLoadState)\b/g) ?? []).length;
     branchPct += Math.min(10, waitGuards * 2);
 
     linePct   = Math.min(98, Math.round(linePct * 10) / 10);

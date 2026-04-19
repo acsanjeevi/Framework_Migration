@@ -53,9 +53,22 @@ const SELECTOR_PATTERNS: Array<{ source: string; flags: string; framework: Selec
     flags: 'g',
     framework: 'playwright',
   },
-  // Playwright helpers: getByTestId('sel'), getByPlaceholder('sel'), getByLabel('sel'), getByText('sel')
+  // Playwright helpers: getByTestId('sel'), getByPlaceholder('sel'), getByLabel('sel'), getByText('sel'), getByRole('sel')
   {
-    source: String.raw`\.getBy(?:TestId|Placeholder|Label|Text)\s*\(\s*(['"\`])([\s\S]*?)\1`,
+    source: String.raw`\.getBy(?:TestId|Placeholder|Label|Text|Role|Title|AltText)\s*\(\s*(['"\`])([\s\S]*?)\1`,
+    flags: 'g',
+    framework: 'playwright',
+  },
+  // Playwright actions with direct selector: page.fill('sel', ...), page.click('sel'), page.type('sel', ...)
+  // page.check('sel'), page.uncheck('sel'), page.hover('sel'), page.focus('sel'), page.tap('sel')
+  {
+    source: String.raw`\.(?:fill|click|type|check|uncheck|hover|focus|tap|dblclick|rightClick|selectOption|dispatchEvent)\s*\(\s*(['"\`])([\s\S]*?)\1`,
+    flags: 'g',
+    framework: 'playwright',
+  },
+  // Playwright waitForSelector / $eval / $$eval / querySelector
+  {
+    source: String.raw`\.(?:waitForSelector|\$eval|\$\$eval|querySelector|querySelectorAll|\$|\$\$)\s*\(\s*(['"\`])([\s\S]*?)\1`,
     flags: 'g',
     framework: 'playwright',
   },

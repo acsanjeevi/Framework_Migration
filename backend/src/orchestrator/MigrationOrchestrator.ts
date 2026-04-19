@@ -7,6 +7,7 @@ import { Step4_SelfHealingEngine } from './steps/Step4_SelfHealingEngine';
 import { Step5_CICDGenerator } from './steps/Step5_CICDGenerator';
 import { Step6_CoverageAnalyzer } from './steps/Step6_CoverageAnalyzer';
 import { Step7_Verifier } from './steps/Step7_Verifier';
+import { MigrationLogger } from '../logger/MigrationLogger';
 
 export interface OrchestratorResult {
   jobId: string;
@@ -67,13 +68,30 @@ export class MigrationOrchestrator {
     const wallStart = Date.now();
     const completedSteps: StepResult[] = [];
 
+    // ── Create per-job logger ───────────────────────────────────────────────
+    const logger = new MigrationLogger(ctx.jobId, ctx.fileName);
+    ctx._logger = logger;  // make available to all steps via context
+    logger.info(null, null, 'JOB_CONFIG', 'Job configuration', {
+      sourceFramework: ctx.declaredSourceFramework,
+      targetLanguage: ctx.targetLanguage,
+      cicdPlatform: ctx.cicdPlatform,
+      provider: ctx.llmConfig?.provider ?? process.env.LLM_PROVIDER ?? 'anthropic',
+      primaryModel: ctx.llmConfig?.primaryModel ?? process.env.LLM_PRIMARY_MODEL ?? '(env default)',
+    });
+
     for (const step of this.steps) {
       let result: StepResult;
 
+      logger.stepStart(step.stepNumber, step.stepName, {
+        contextKeys: Object.keys(ctx).filter(k => k !== 'sourceCode' && k !== 'llmConfig'),
+      });
+
+      const stepStart = Date.now();
       try {
         result = await step.run(ctx);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
+        const dur = Date.now() - stepStart;
         result = {
           stepNumber: step.stepNumber,
           stepName: step.stepName,
@@ -81,8 +99,20 @@ export class MigrationOrchestrator {
           confidence: null,
           data: null,
           errorReason: `Unexpected error in step ${step.stepNumber}: ${message}`,
-          durationMs: 0,
+          durationMs: dur,
         };
+        logger.error(step.stepNumber, step.stepName, 'STEP_EXCEPTION', `Unhandled exception: ${message}`, {
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+      }
+
+      // ── Log step outcome ──────────────────────────────────────────────────
+      if (result.status === 'pass') {
+        logger.stepPass(step.stepNumber, step.stepName, result.durationMs, result.data ?? undefined);
+      } else if (result.status === 'fail') {
+        logger.stepFail(step.stepNumber, step.stepName, result.errorReason ?? 'unknown', result.durationMs);
+      } else {
+        logger.stepHalt(step.stepNumber, step.stepName, result.errorReason ?? 'unknown', result.durationMs);
       }
 
       completedSteps.push(result);
@@ -98,10 +128,19 @@ export class MigrationOrchestrator {
 
       // Gate: stop the pipeline on any non-pass result
       if (result.status !== 'pass') {
+        const totalMs = Date.now() - wallStart;
+        const overallStatus = result.status === 'fail' ? 'failed' : 'halted';
+        logger.jobComplete(overallStatus, totalMs, {
+          stepsCompleted: completedSteps.length,
+          stoppedAtStep: step.stepNumber,
+          stoppedAtStepName: step.stepName,
+          reason: result.errorReason,
+          logFile: logger.logFilePath,
+        });
         return {
           jobId: ctx.jobId,
           fileName: ctx.fileName,
-          overallStatus: result.status === 'fail' ? 'failed' : 'halted',
+          overallStatus,
           steps: completedSteps,
           output: {
             healedCode: ctx.healedCode ?? null,
@@ -110,10 +149,18 @@ export class MigrationOrchestrator {
             coverage: ctx.coverage ?? null,
             agentUsed: ctx.agentUsed ?? null,
           },
-          totalDurationMs: Date.now() - wallStart,
+          totalDurationMs: totalMs,
         };
       }
     }
+
+    const totalMs = Date.now() - wallStart;
+    logger.jobComplete('complete', totalMs, {
+      stepsCompleted: completedSteps.length,
+      confidence: ctx.confidence,
+      agentUsed: ctx.agentUsed,
+      logFile: logger.logFilePath,
+    });
 
     return {
       jobId: ctx.jobId,
@@ -127,7 +174,7 @@ export class MigrationOrchestrator {
         coverage: ctx.coverage ?? null,
         agentUsed: ctx.agentUsed ?? null,
       },
-      totalDurationMs: Date.now() - wallStart,
+      totalDurationMs: totalMs,
     };
   }
 

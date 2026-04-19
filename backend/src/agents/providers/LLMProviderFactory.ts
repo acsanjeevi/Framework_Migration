@@ -38,8 +38,8 @@ const PROVIDER_DEFAULTS: Record<ProviderName, { primary: string; fallback: strin
     fallback: 'gpt-4o',
   },
   groq: {
-    primary: 'llama-3.1-8b-instant',
-    fallback: 'llama-3.1-70b-versatile',
+    primary: 'llama-3.3-70b-versatile',
+    fallback: 'llama-3.3-70b-versatile',
   },
 };
 

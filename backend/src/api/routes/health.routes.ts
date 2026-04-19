@@ -122,33 +122,42 @@ router.get('/queue', async (_req: Request, res: Response): Promise<void> => {
 });
 
 // GET /health/llm
-// Validates that ANTHROPIC_API_KEY is set and agents can be constructed.
-// Does NOT make a live API call (no cost, no latency).
+// Validates that the active provider's API key is set. No live API call.
 router.get('/llm', (_req: Request, res: Response): void => {
-  const apiKeySet = Boolean(process.env.ANTHROPIC_API_KEY);
+  const provider = (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase();
+  const keyEnvMap: Record<string, string> = {
+    anthropic: 'ANTHROPIC_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    groq: 'GROQ_API_KEY',
+  };
+  const keyName = keyEnvMap[provider] ?? 'ANTHROPIC_API_KEY';
+  const apiKeySet = Boolean(process.env[keyName]);
+
+  const primaryModel = process.env.LLM_PRIMARY_MODEL ?? (provider === 'groq' ? 'llama-3.3-70b-versatile' : provider === 'openai' ? 'gpt-4o-mini' : 'claude-haiku-4-5');
+  const fallbackModel = process.env.LLM_FALLBACK_MODEL ?? (provider === 'groq' ? 'llama-3.3-70b-versatile' : provider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-5');
 
   const agents: Array<{ name: string; model: string; healthy: boolean; error: string | null }> = [];
 
   for (const entry of [
-    { name: 'HaikuAgent', model: 'claude-haiku-4-5' },
-    { name: 'SonnetAgent', model: 'claude-sonnet-4-5' },
+    { name: 'PrimaryAgent', model: primaryModel },
+    { name: 'FallbackAgent', model: fallbackModel },
   ]) {
     if (!apiKeySet) {
-      agents.push({ ...entry, healthy: false, error: 'ANTHROPIC_API_KEY not set' });
+      agents.push({ ...entry, healthy: false, error: `${keyName} not set` });
     } else {
       agents.push({ ...entry, healthy: true, error: null });
     }
   }
 
   const allHealthy = agents.every((a) => a.healthy);
-  const httpStatus = allHealthy ? 200 : 503;
 
-  res.status(httpStatus).json({
+  res.status(allHealthy ? 200 : 503).json({
     status: allHealthy ? 'ok' : 'error',
     llm: {
+      provider,
       apiKeySet,
       confidenceThreshold: 0.85,
-      escalationModel: 'sonnet-4.6',
+      escalationModel: fallbackModel,
       agents,
     },
   });

@@ -8,9 +8,10 @@ const BRANCH_THRESHOLD = 85;
 /**
  * Step 7 — Final Verification & Scoring.
  *
- * Gate: confidence ≥ 85% AND coverage thresholds met.
- * This skeleton runs the same logic the real verifier will use,
- * sourcing values already set by Steps 3 and 6.
+ * Hard gate (HALT):  confidence < 85%, missing healedCode, missing cicdYaml
+ * Soft gate (WARN):  coverage below thresholds — logged but does NOT block output
+ *                    because the coverage runners are static stubs until real
+ *                    analysis (Istanbul/JaCoCo/CoveragePy) is wired.
  */
 export class Step7_Verifier {
   readonly stepNumber = 7;
@@ -23,33 +24,37 @@ export class Step7_Verifier {
     const linePct = ctx.coverage?.linePct ?? 0;
     const branchPct = ctx.coverage?.branchPct ?? 0;
 
-    const failures: string[] = [];
+    // ── Hard failures — these block output ──────────────────────────────────
+    const hardFailures: string[] = [];
 
     if (confidence < CONFIDENCE_THRESHOLD) {
-      failures.push(
+      hardFailures.push(
         `Confidence ${(confidence * 100).toFixed(1)}% < required ${(CONFIDENCE_THRESHOLD * 100)}%`
       );
     }
-    if (linePct < LINE_THRESHOLD) {
-      failures.push(`Line coverage ${linePct}% < required ${LINE_THRESHOLD}%`);
-    }
-    if (branchPct < BRANCH_THRESHOLD) {
-      failures.push(`Branch coverage ${branchPct}% < required ${BRANCH_THRESHOLD}%`);
-    }
     if (!ctx.healedCode) {
-      failures.push('Healed code is missing — Step 4 may not have completed.');
+      hardFailures.push('Healed code is missing — Step 4 may not have completed.');
     }
     if (!ctx.cicdYaml) {
-      failures.push('CI/CD YAML is missing — Step 5 may not have completed.');
+      hardFailures.push('CI/CD YAML is missing — Step 5 may not have completed.');
     }
 
-    if (failures.length > 0) {
+    if (hardFailures.length > 0) {
       return makeHaltResult(
         this.stepNumber,
         this.stepName,
-        `Verification failed:\n${failures.map((f) => `  • ${f}`).join('\n')}`,
+        `Verification failed:\n${hardFailures.map((f) => `  • ${f}`).join('\n')}`,
         Date.now() - start
       );
+    }
+
+    // ── Soft warnings — logged but do not block output ───────────────────────
+    const coverageWarnings: string[] = [];
+    if (linePct < LINE_THRESHOLD) {
+      coverageWarnings.push(`Line coverage ${linePct}% < recommended ${LINE_THRESHOLD}%`);
+    }
+    if (branchPct < BRANCH_THRESHOLD) {
+      coverageWarnings.push(`Branch coverage ${branchPct}% < recommended ${BRANCH_THRESHOLD}%`);
     }
 
     ctx.verified = true;
@@ -64,9 +69,11 @@ export class Step7_Verifier {
         agentUsed: ctx.agentUsed ?? 'unknown',
         cicdPlatform: ctx.cicdPlatform,
         verified: true,
+        coverageWarnings: coverageWarnings.length > 0 ? coverageWarnings : null,
       },
       Date.now() - start,
       confidence
     );
   }
 }
+

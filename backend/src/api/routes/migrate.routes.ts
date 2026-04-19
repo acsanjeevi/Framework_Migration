@@ -5,7 +5,7 @@ import { assignUploadSession, handleUpload } from '../middleware/upload.middlewa
 import { validateUploadBody } from '../middleware/validation.middleware';
 import { enqueueJob, migrationQueue, MigrationJobData } from '../../queue/MigrationQueue';
 import { ResultStore } from '../../store/ResultStore';
-import { extractZipToInput, copyFilesToInput, FolderNode } from '../../workspace/WorkspaceManager';
+import { extractZipToInput, copyFilesToInput, getOutputTree, FolderNode } from '../../workspace/WorkspaceManager';
 
 const router = Router();
 
@@ -179,8 +179,13 @@ router.get('/result/:jobId', (req: Request, res: Response): void => {
     return;
   }
 
+  const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const fileCount = completedFiles.length;
+  const platform = batch.config.cicdPlatform;
+  const zipName = `playwright-migration_${dateStr}_${fileCount}-files_${platform}.zip`;
+
   res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', `attachment; filename="migration-${jobId}.zip"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
 
   const archive = archiver('zip', { zlib: { level: 6 } });
   archive.on('error', (err) => {
@@ -228,10 +233,14 @@ router.get('/summary/:jobId', (req: Request, res: Response): void => {
     return;
   }
 
+  const outputFolder = getOutputTree(jobId);
+
   res.status(200).json({
-    status: 'ok',
-    jobId,
-    summary: buildSummary(jobId, batch),
+    batchId: batch.batchId,
+    completedAt: batch.completedAt,
+    config: batch.config,
+    files: batch.files,
+    outputFolder: outputFolder.length > 0 ? outputFolder : undefined,
   });
 });
 
