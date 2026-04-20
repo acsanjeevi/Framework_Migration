@@ -1,5 +1,5 @@
 import { ILLMProvider } from './providers/ILLMProvider';
-import { AgentCallParams, AgentResponse } from './AgentTypes';
+import { AgentCallParams, AgentResponse, MigratedFile } from './AgentTypes';
 
 export interface GenericAgentConfig {
   provider: ILLMProvider;
@@ -33,23 +33,67 @@ export class GenericMigrationAgent {
       ? [
           'You are a senior QA Automation Migration Expert operating in HIGH-ACCURACY mode.',
           'A previous migration attempt produced low confidence. Produce a correct, complete migration.',
-          'Rules:',
-          '- ONLY use selectors, class names and method names from the source file.',
+          '',
+          'Convert the source test code into a fully-structured Playwright Page Object Model (POM) project.',
+          '',
+          'OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no extra text):',
+          '{',
+          '  "files": [',
+          '    { "path": "tests/<OriginalName>.spec.ts", "content": "<test spec code>" },',
+          '    { "path": "pages/<PageName>Page.ts",      "content": "<page object code>" },',
+          '    { "path": "locators/<PageName>.locators.ts", "content": "<centralized selectors>" },',
+          '    { "path": "test-data/<name>.data.ts",     "content": "<test data as TS exports>" },',
+          '    { "path": "utils/helpers.ts",             "content": "<utility functions>" },',
+          '    { "path": "config/env.config.ts",         "content": "<env config and base URLs>" },',
+          '    { "path": "fixtures/base.fixtures.ts",    "content": "<setup/teardown hooks>" },',
+          '    { "path": "constants/constants.ts",       "content": "<global constants and enums>" }',
+          '  ],',
+          '  "confidence": 0.95',
+          '}',
+          '',
+          'STRICT RULES:',
+          '- ONLY use selectors, class names and method names present in the source file.',
           '- NEVER invent or assume anything not present in the source.',
           '- If source is ambiguous, respond with exactly: CLARIFICATION_NEEDED: <reason>',
-          '- Do NOT add any inline comments or annotations inside selector strings.',
+          '- Move ALL selectors/locators to the locators/ folder — no inline selectors in tests or pages.',
+          '- Tests must ONLY call page object methods — no direct locator logic in tests.',
+          '- Move ALL hardcoded values (credentials, URLs, data) to test-data/ or config/.',
           '- Preserve 100% of original test intent and assertions.',
-          '- Return ONLY valid code — no markdown fences, no explanations.',
+          '- Include only files that have meaningful content (omit empty stubs).',
+          '- Do NOT add any inline comments or annotations inside selector strings.',
+          '- Ensure the project is immediately runnable without restructuring.',
+          '- Return ONLY valid JSON — absolutely no markdown fences, no explanations.',
         ].join('\n')
       : [
-          'You are a QA Automation Migration Expert. Your ONLY task is to convert the provided source test code to Playwright.',
-          'Rules:',
-          '- ONLY use selectors, class names and method names from the source file.',
+          'You are a QA Automation Migration Expert. Convert the source test code into a fully-structured Playwright Page Object Model (POM) project.',
+          '',
+          'OUTPUT FORMAT — return ONLY a single valid JSON object (no markdown fences, no extra text):',
+          '{',
+          '  "files": [',
+          '    { "path": "tests/<OriginalName>.spec.ts", "content": "<test spec code>" },',
+          '    { "path": "pages/<PageName>Page.ts",      "content": "<page object code>" },',
+          '    { "path": "locators/<PageName>.locators.ts", "content": "<centralized selectors>" },',
+          '    { "path": "test-data/<name>.data.ts",     "content": "<test data as TS exports>" },',
+          '    { "path": "utils/helpers.ts",             "content": "<utility functions>" },',
+          '    { "path": "config/env.config.ts",         "content": "<env config and base URLs>" },',
+          '    { "path": "fixtures/base.fixtures.ts",    "content": "<setup/teardown hooks>" },',
+          '    { "path": "constants/constants.ts",       "content": "<global constants and enums>" }',
+          '  ],',
+          '  "confidence": 0.95',
+          '}',
+          '',
+          'STRICT RULES:',
+          '- ONLY use selectors, class names and method names present in the source file.',
           '- NEVER invent or assume anything not present in the source.',
           '- If source is ambiguous, respond with exactly: CLARIFICATION_NEEDED: <reason>',
-          '- Do NOT add any inline comments or annotations inside selector strings.',
+          '- Move ALL selectors/locators to the locators/ folder — no inline selectors in tests or pages.',
+          '- Tests must ONLY call page object methods — no direct locator logic in tests.',
+          '- Move ALL hardcoded values (credentials, URLs, data) to test-data/ or config/.',
           '- Preserve 100% of original test intent and assertions.',
-          '- Return ONLY valid code — no markdown fences, no explanations.',
+          '- Include only files that have meaningful content (omit empty stubs).',
+          '- Do NOT add any inline comments or annotations inside selector strings.',
+          '- Ensure the project is immediately runnable without restructuring.',
+          '- Return ONLY valid JSON — absolutely no markdown fences, no explanations.',
         ].join('\n');
 
     const userPrompt = [
@@ -60,7 +104,7 @@ export class GenericMigrationAgent {
       `Source File:`,
       `${sourceCode}`,
       ``,
-      `Convert the above to Playwright ${targetLanguage}. Return ONLY valid code.`,
+      `Generate the complete POM project structure for the above source file. Return ONLY valid JSON as specified.`,
     ].join('\n');
 
     const result = await provider.callModel(modelId, systemPrompt, userPrompt, maxTokens);
@@ -76,15 +120,53 @@ export class GenericMigrationAgent {
     }
 
     // Strip markdown code fences that some LLMs add despite prompt instructions
-    const cleanedCode = result.text
-      .replace(/^```[\w]*\r?\n?/m, '')   // opening fence: ```typescript or ```
+    const cleanedText = result.text
+      .replace(/^```[\w]*\r?\n?/m, '')   // opening fence: ```json or ```
       .replace(/\r?\n?```\s*$/m, '')      // closing fence: ```
       .trim();
 
-    const confidence = computeHeuristicConfidence(sourceCode, cleanedCode);
+    // ── Attempt to parse as POM multi-file JSON response ─────────────────────
+    let migratedFiles: MigratedFile[] | undefined;
+    let mainCode: string;
+    let confidence: number;
+
+    try {
+      const parsed = JSON.parse(cleanedText) as {
+        files?: Array<{ path: string; content: string }>;
+        confidence?: number;
+      };
+
+      if (parsed.files && Array.isArray(parsed.files) && parsed.files.length > 0) {
+        migratedFiles = parsed.files
+          .filter((f) => f.path && typeof f.content === 'string')
+          .map((f) => ({ path: f.path, content: f.content }));
+
+        // Use the tests/ spec file as the primary code for Step4 (self-healing)
+        const testEntry = migratedFiles.find((f) => f.path.startsWith('tests/'));
+        mainCode = testEntry?.content ?? migratedFiles[0].content;
+        confidence = typeof parsed.confidence === 'number'
+          ? Math.min(1, Math.max(0, parsed.confidence))
+          : computeHeuristicConfidence(sourceCode, mainCode);
+      } else {
+        // JSON but no files array — fall back to raw text
+        mainCode = cleanedText;
+        confidence = computeHeuristicConfidence(sourceCode, mainCode);
+      }
+    } catch {
+      // Not JSON — legacy single-file response; wrap it into a tests/ file
+      mainCode = cleanedText;
+      confidence = computeHeuristicConfidence(sourceCode, mainCode);
+
+      // Infer a sensible test filename from the original source
+      const baseName = sourceCode.trim().split('\n')[0]?.includes('describe')
+        ? 'migrated'
+        : 'migrated';
+      migratedFiles = [{ path: `tests/${baseName}.spec.ts`, content: mainCode }];
+    }
 
     return {
-      migratedCode: cleanedCode,
+      migratedCode: mainCode,
+      migratedFiles,
       confidence,
       usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
       clarificationNeeded: false,

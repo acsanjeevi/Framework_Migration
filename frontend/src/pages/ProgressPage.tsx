@@ -67,8 +67,8 @@ export default function ProgressPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Migration in Progress</h1>
-          <p className="text-sm text-white/40 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Migration in Progress</h1>
+          <p className="text-sm text-slate-500 mt-1">
             {phase === 'uploading'   && 'Uploading files to server…'}
             {phase === 'processing'  && `AI agents processing ${counts.total} file${counts.total !== 1 ? 's' : ''}…`}
             {phase === 'complete'    && '✓ All files processed — redirecting to output…'}
@@ -82,7 +82,7 @@ export default function ProgressPage() {
             'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium',
             wsStatus === 'connected'    && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
             wsStatus === 'connecting'   && 'border-amber-500/30 bg-amber-500/10 text-amber-300',
-            wsStatus === 'disconnected' && 'border-white/10 bg-white/[0.04] text-white/30',
+            wsStatus === 'disconnected' && 'border-slate-200 bg-slate-50 text-slate-400',
             wsStatus === 'error'        && 'border-red-500/30 bg-red-500/10 text-red-300',
           )}>
             {wsStatus === 'connecting'
@@ -105,7 +105,7 @@ export default function ProgressPage() {
             <WifiOff className="h-4 w-4 text-red-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-red-200">Migration Failed</p>
+            <p className="text-sm font-semibold text-red-700">Migration Failed</p>
             <p className="text-xs text-red-300/60 mt-1">
               The migration job encountered an unrecoverable error. This may be due to a server restart,
               network issue, or API provider outage.
@@ -118,7 +118,7 @@ export default function ProgressPage() {
       )}
 
       {/* Overall progress bar */}
-      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
         <GlobalProgressBar
           percentage={overall}
           total={counts.total}
@@ -130,7 +130,7 @@ export default function ProgressPage() {
 
       {/* Per-file list */}
       <div>
-        <h2 className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Files</h2>
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Files</h2>
         <FileProgressList files={files} />
       </div>
 
@@ -144,7 +144,7 @@ export default function ProgressPage() {
             </Button>
           )}
           <Button variant="outline" onClick={() => navigate('/upload')}
-            className="border-white/[0.1] bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white">
+            className="border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
             New Migration
           </Button>
         </div>

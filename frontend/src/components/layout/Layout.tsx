@@ -20,7 +20,7 @@ export default function Layout() {
   const isProcessing = phase === 'processing' || phase === 'uploading'
 
   return (
-    <div className="flex h-screen bg-[#0a0a0f] text-foreground overflow-hidden">
+    <div className="flex h-screen bg-slate-100 text-foreground overflow-hidden">
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside className="w-60 flex flex-col shrink-0 border-r border-white/[0.06] bg-gradient-to-b from-[#0f0f1a] to-[#0a0a12]">
         {/* Logo */}
@@ -96,31 +96,31 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 bg-[#0c0c14]">
+      <div className="flex flex-col flex-1 min-w-0 bg-white">
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.06] bg-[#0f0f1a]/80 backdrop-blur-sm shrink-0">
+        <header className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-white/95 backdrop-blur-sm shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-white/90">
+            <h2 className="text-sm font-semibold text-slate-800">
               AI-Powered Test Migration Platform
             </h2>
-            <p className="text-[11px] text-white/30 mt-0.5">
+            <p className="text-[11px] text-slate-400 mt-0.5">
               Playwright · Self-Healing · CI/CD · Coverage Enforcement
             </p>
           </div>
           <div className="flex items-center gap-2">
             {isProcessing && (
-              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 font-medium animate-pulse">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-amber-400/40 bg-amber-50 text-amber-600 font-medium animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 Migrating… {overall}%
               </span>
             )}
             {phase === 'complete' && (
-              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-emerald-400/40 bg-emerald-50 text-emerald-600 font-medium">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Migration complete
               </span>
             )}
-            <span className="text-[10px] text-white/20 ml-2">Phase 1 · Hackathon 2026</span>
+            <span className="text-[10px] text-slate-300 ml-2">Phase 1 · Hackathon 2026</span>
           </div>
         </header>
 

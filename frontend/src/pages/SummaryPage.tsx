@@ -15,21 +15,21 @@ function StatCard({ label, value, sub, accent, icon: Icon }: {
   icon: React.ElementType
 }) {
   const styles = {
-    green: { value: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400' },
-    red:   { value: 'text-red-300',     bg: 'bg-red-500/10',     border: 'border-red-500/20',     icon: 'text-red-400' },
-    amber: { value: 'text-amber-300',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   icon: 'text-amber-400' },
+    green: { value: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-500' },
+    red:   { value: 'text-red-600',     bg: 'bg-red-500/10',     border: 'border-red-500/20',     icon: 'text-red-500' },
+    amber: { value: 'text-amber-600',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   icon: 'text-amber-500' },
   }
   const s = styles[accent ?? 'green']
   return (
     <div className={cn('rounded-xl border p-5 space-y-2', s.bg, s.border)}>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-white/40 font-medium uppercase tracking-wider">{label}</p>
+        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
         <div className={cn('h-6 w-6 rounded-md flex items-center justify-center', s.bg)}>
           <Icon className={cn('h-3.5 w-3.5', s.icon)} />
         </div>
       </div>
       <p className={cn('text-3xl font-bold tabular-nums', s.value)}>{value}</p>
-      {sub && <p className="text-xs text-white/30">{sub}</p>}
+      {sub && <p className="text-xs text-slate-400">{sub}</p>}
     </div>
   )
 }
@@ -85,14 +85,14 @@ export default function SummaryPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Migration Summary</h1>
-          <p className="text-xs text-white/30 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Migration Summary</h1>
+          <p className="text-xs text-slate-400 mt-1">
             Job <span className="font-mono">{result.batchId}</span> · Completed {completedAt}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={() => navigate('/output')}
-            className="gap-1.5 border-white/[0.1] bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white text-xs">
+            className="gap-1.5 border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 text-xs">
             <ArrowLeft className="h-3 w-3" /> Output
           </Button>
           <Button size="sm" onClick={() => { reset(); navigate('/upload') }}
@@ -105,8 +105,8 @@ export default function SummaryPage() {
       {/* Config bar */}
       <div className="flex flex-wrap gap-3 text-xs">
         {[['Source', cfg.sourceFramework], ['Target', `${cfg.targetLanguage} · Playwright`], ['CI/CD', cfg.cicdPlatform]].map(([k, v]) => (
-          <span key={k} className="px-3 py-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/40">
-            {k}: <span className="text-white/70 font-medium capitalize">{v}</span>
+          <span key={k} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
+            {k}: <span className="text-slate-700 font-medium capitalize">{v}</span>
           </span>
         ))}
       </div>
@@ -151,7 +151,7 @@ export default function SummaryPage() {
 
       {/* Table */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Per-File Results</h2>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Per-File Results</h2>
         <MigrationSummaryTable files={result.files} />
       </section>
     </div>

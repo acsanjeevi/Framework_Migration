@@ -12,9 +12,50 @@ export interface LLMOverride {
   fallbackModel: string
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// File optimisation (whitespace-only — never touches code semantics)
+// ─────────────────────────────────────────────────────────────────────────────
+const TEXT_EXTENSIONS = new Set(['.ts', '.js', '.java', '.py', '.feature', '.xml'])
+
+function isTextFile(name: string): boolean {
+  const lower = name.toLowerCase()
+  return Array.from(TEXT_EXTENSIONS).some(ext => lower.endsWith(ext))
+}
+
+/**
+ * Applies safe, whitespace-only clean-ups to a source file:
+ *   1. Strip UTF-8 BOM
+ *   2. Normalize CRLF → LF
+ *   3. Remove trailing spaces/tabs from every line
+ *   4. Collapse 3+ consecutive blank lines down to 2
+ *   5. Ensure a single trailing newline
+ *
+ * Binary files (.zip) and unreadable files are returned unchanged.
+ */
+async function optimizeFile(file: File): Promise<File> {
+  if (!isTextFile(file.name)) return file
+  try {
+    const raw = await file.text()
+    const optimized = raw
+      .replace(/^\uFEFF/, '')        // strip BOM
+      .replace(/\r\n/g, '\n')        // CRLF → LF
+      .replace(/\r/g, '\n')          // lone CR → LF
+      .replace(/[ \t]+$/gm, '')      // trailing whitespace per line
+      .replace(/\n{3,}/g, '\n\n')    // collapse 3+ blank lines → 2
+      .trim() + '\n'                 // single trailing newline
+    return new File([optimized], file.name, {
+      type: file.type || 'text/plain',
+      lastModified: file.lastModified,
+    })
+  } catch {
+    return file  // if text read fails, send original unchanged
+  }
+}
+
 /**
  * POST /api/migrate/upload
  * Sends files + config + optional LLM override as multipart/form-data.
+ * Text source files are whitespace-optimised before upload.
  */
 export async function uploadFiles(
   files: File[],
@@ -23,7 +64,8 @@ export async function uploadFiles(
 ): Promise<UploadResponse> {
   const form = new FormData()
 
-  files.forEach((file) => form.append('files', file))
+  const optimized = await Promise.all(files.map(optimizeFile))
+  optimized.forEach((file) => form.append('files', file))
   form.append('sourceFramework', config.sourceFramework)
   form.append('targetLanguage', config.targetLanguage)
   form.append('cicdPlatform', config.cicdPlatform)

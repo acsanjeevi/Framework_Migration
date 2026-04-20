@@ -1,3 +1,4 @@
+Strictly use this changes only for OUTPUT file format.
 project-root/
 │── src/
 │ ├── main/
@@ -12,7 +13,95 @@ project-root/
 │ │ │ │ ├── DashboardPage.java
 │ │ │ │ └── BasePage.java
 │ │ │ │
-│ │ │ └── common/
+│ │ │ └── common/Refactor the existing automation project (currently packaged as a ZIP with mixed structure) into a clean, enterprise-level Page Object Model (POM) architecture.
+
+STRICT REQUIREMENTS:
+
+1. PROJECT STRUCTURE
+Reorganize the entire project into the following folder structure:
+
+/project-root
+│── /tests
+│     └── (test specs only; no selectors or raw data)
+│
+│── /pages
+│     └── (page object classes; each page encapsulates locators + actions)
+│
+│── /locators
+│     └── (all selectors centralized and reusable; no hardcoded selectors in tests)
+│
+│── /test-data
+│     └── (all static and dynamic test data in JSON/TS/JS format)
+│
+│── /utils
+│     └── (helper methods, common utilities, wrappers)
+│
+│── /config
+│     └── (environment configs, base URLs, credentials handling)
+│
+│── /fixtures
+│     └── (setup/teardown, reusable test hooks)
+│
+│── /reports
+│     └── (test execution reports)
+│
+│── /constants
+│     └── (global constants, enums)
+│
+│── /drivers or /setup (if applicable)
+│
+│── package.json / requirements.txt / config files
+
+2. PAGE OBJECT MODEL IMPLEMENTATION
+- Each page must:
+  - Have its own class/file
+  - Import selectors from `/locators`
+  - Expose reusable methods (NO test logic inside pages)
+- Tests must only call page methods (no direct selectors)
+
+3. SELECTORS HANDLING
+- Move ALL selectors to `/locators`
+- Group selectors by page/module
+- Use meaningful naming conventions
+- Avoid duplication
+
+4. TEST DATA MANAGEMENT
+- Move all hardcoded values into `/test-data`
+- Use structured formats (JSON preferred)
+- Support environment-based overrides if needed
+
+5. CODE QUALITY
+- Remove duplicate logic
+- Follow DRY principles
+- Add clear naming conventions
+- Ensure modular and scalable design
+- Ensure the project is runnable without manual fixes
+
+6. UI REQUIREMENT (STRICT)
+- Update any UI-related code/config so that background color is LIGHT (e.g., white or light theme)
+- Remove any dark theme or dark styling references
+
+7. ENTERPRISE STANDARDS
+- Add proper error handling
+- Add logging where necessary
+- Ensure reusability and maintainability
+- Ensure test execution is stable and parallel-ready (if framework supports)
+
+8. OUTPUT EXPECTATION
+- Final output must be:
+  - Fully structured as per above
+  - Cleanly separated concerns
+  - Immediately runnable without restructuring
+  - Free of inline selectors and hardcoded test data
+
+9. MIGRATION RULE
+- Preserve existing test logic
+- Only refactor structure and organization
+- Ensure no functional regression
+
+Follow the "After migration output folder structureformat.txt" as the baseline reference for structure alignment.
+
+Deliver the complete refactored project.
 │ │ │ ├── HeaderComponent.java
 │ │ │ ├── FooterComponent.java
 │ │ │ └── SidebarComponent.java

@@ -20,8 +20,8 @@ export default function FileProgressList({ files }: Props) {
 
   return (
     <div className="space-y-3">
-      {sorted.map(file => (
-        <FileProgressItem key={file.fileName} file={file} />
+      {sorted.map((file, i) => (
+        <FileProgressItem key={`${i}-${file.fileName}`} file={file} />
       ))}
     </div>
   )

@@ -53,11 +53,11 @@ export default function MigrationSummaryTable({ files }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {files.map(file => {
+          {files.map((file, i) => {
             const isLowConf = file.agentUsed?.includes('low-confidence')
             return (
             <TableRow
-              key={file.fileName}
+              key={`${i}-${file.fileName}`}
               className={cn(
                 'border-white/[0.04]',
                 file.status === 'complete' && !isLowConf && 'hover:bg-emerald-500/[0.04]',

@@ -89,6 +89,7 @@ export class Step3_CodeTransformer {
     }
 
     ctx.migratedCode = response.migratedCode;
+    ctx.migratedFiles = response.migratedFiles;
     ctx.confidence = response.confidence;
     ctx.agentUsed = response.agentUsed;
 

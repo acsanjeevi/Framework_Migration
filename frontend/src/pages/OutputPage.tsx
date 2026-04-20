@@ -72,8 +72,8 @@ function SectionHeader({ icon: Icon, title, badge }: { icon: React.ElementType, 
       <div className="h-6 w-6 rounded-md bg-violet-500/15 flex items-center justify-center">
         <Icon className="h-3.5 w-3.5 text-violet-400" />
       </div>
-      <h2 className="text-sm font-semibold text-white/80">{title}</h2>
-      {badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 font-mono">{badge}</span>}
+      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+      {badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-mono">{badge}</span>}
     </div>
   )
 }
@@ -100,11 +100,11 @@ export default function OutputPage() {
   if (!result) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-        <div className="h-14 w-14 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-4">
-          <FileCode2 className="h-7 w-7 text-white/20" />
+        <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+          <FileCode2 className="h-7 w-7 text-slate-300" />
         </div>
-        <p className="text-white/50 text-sm">No output available yet.</p>
-        <button className="text-violet-400 text-sm mt-1 hover:underline" onClick={() => navigate('/upload')}>
+        <p className="text-slate-500 text-sm">No output available yet.</p>
+        <button className="text-violet-600 text-sm mt-1 hover:underline" onClick={() => navigate('/upload')}>
           Start a migration â†’
         </button>
       </div>
@@ -120,10 +120,10 @@ export default function OutputPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Migration Output</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Migration Output</h1>
           <div className="flex items-center gap-3 mt-1.5">
             <span className={cn('flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full',
-              completeFiles.length > 0 ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20' : 'text-red-300 bg-red-500/10 border border-red-500/20'
+              completeFiles.length > 0 ? 'text-emerald-600 bg-emerald-500/10 border border-emerald-500/20' : 'text-red-600 bg-red-500/10 border border-red-500/20'
             )}>
               <CheckCircle2 className="h-3 w-3" />
               {completeFiles.length} succeeded
@@ -134,7 +134,7 @@ export default function OutputPage() {
                 {failedFiles.length} failed
               </span>
             )}
-            <span className="text-xs text-white/25">{result.files.length} total files</span>
+            <span className="text-xs text-slate-400">{result.files.length} total files</span>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -143,7 +143,7 @@ export default function OutputPage() {
             size="sm"
             variant="outline"
             onClick={() => navigate('/summary')}
-            className="gap-1.5 border-white/[0.1] bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white text-xs"
+            className="gap-1.5 border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 text-xs"
           >
             Summary <ArrowRight className="h-3 w-3" />
           </Button>
@@ -156,10 +156,10 @@ export default function OutputPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-amber-200">
+              <p className="text-sm font-semibold text-amber-700">
                 {failedFiles.length} file{failedFiles.length !== 1 ? 's' : ''} could not be migrated
               </p>
-              <p className="text-xs text-amber-300/60 mt-1">
+              <p className="text-xs text-amber-600/70 mt-1">
                 Common causes: API rate limits, low AI confidence, or unsupported source patterns.
                 Click a failed file tab to see the specific reason and recommended action.
               </p>
@@ -174,15 +174,15 @@ export default function OutputPage() {
       {/* File tabs */}
       <Tabs defaultValue={defaultTab} className="space-y-0">
         <div className="overflow-x-auto pb-1 mb-4">
-          <TabsList className="flex h-auto gap-1 bg-white/[0.03] border border-white/[0.07] p-1 rounded-xl w-max min-w-full">
-            {result.files.map(file => (
+          <TabsList className="flex h-auto gap-1 bg-slate-100 border border-slate-200 p-1 rounded-xl w-max min-w-full">
+            {result.files.map((file, i) => (
               <TabsTrigger
-                key={file.fileName}
+                key={`${i}-${file.fileName}`}
                 value={file.fileName}
                 className={cn(
-                  'rounded-lg text-xs px-3 py-1.5 transition-all data-[state=active]:bg-violet-600/30 data-[state=active]:text-white data-[state=active]:border-violet-500/40 data-[state=active]:shadow-none',
-                  'text-white/35 hover:text-white/60',
-                  file.status === 'failed' && 'data-[state=active]:bg-red-600/20 data-[state=active]:border-red-500/30 data-[state=active]:text-red-200'
+                  'rounded-lg text-xs px-3 py-1.5 transition-all data-[state=active]:bg-violet-600/30 data-[state=active]:text-violet-700 data-[state=active]:border-violet-500/40 data-[state=active]:shadow-none',
+                  'text-slate-500 hover:text-slate-700',
+                  file.status === 'failed' && 'data-[state=active]:bg-red-600/20 data-[state=active]:border-red-500/30 data-[state=active]:text-red-700'
                 )}
               >
                 <FileTabLabel file={file} />
@@ -191,24 +191,24 @@ export default function OutputPage() {
           </TabsList>
         </div>
 
-        {result.files.map(file => {
+        {result.files.map((file, i) => {
           const isLowConf = file.agentUsed?.includes('low-confidence')
           const err = humanizeError(file.errorReason)
 
           return (
-            <TabsContent key={file.fileName} value={file.fileName}>
+            <TabsContent key={`${i}-${file.fileName}`} value={file.fileName}>
               {/* File meta strip */}
-              <div className="flex flex-wrap items-center gap-2 mb-5 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              <div className="flex flex-wrap items-center gap-2 mb-5 p-3 rounded-xl border border-slate-200 bg-slate-50">
                 <span className={cn('flex items-center gap-1 text-xs px-2 py-1 rounded-md font-medium',
-                  file.status === 'complete' && !isLowConf ? 'bg-emerald-500/15 text-emerald-300' :
-                  isLowConf ? 'bg-amber-500/15 text-amber-300' :
-                  'bg-red-500/15 text-red-300'
+                  file.status === 'complete' && !isLowConf ? 'bg-emerald-500/15 text-emerald-600' :
+                  isLowConf ? 'bg-amber-500/15 text-amber-600' :
+                  'bg-red-500/15 text-red-600'
                 )}>
                   {file.status === 'complete' ? (isLowConf ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />) : <XCircle className="h-3 w-3" />}
                   {file.status === 'complete' ? (isLowConf ? 'Low Confidence' : 'Complete') : 'Failed'}
                 </span>
-                {file.detectedFramework && <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] text-white/50 capitalize">{file.detectedFramework}</span>}
-                {file.detectedPattern && <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] text-white/50">{file.detectedPattern}</span>}
+                {file.detectedFramework && <span className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500 capitalize">{file.detectedFramework}</span>}
+                {file.detectedPattern && <span className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500">{file.detectedPattern}</span>}
                 {file.confidence !== undefined && (
                   <span className={cn('flex items-center gap-1 text-xs px-2 py-1 rounded-md',
                     file.confidence >= 0.85 ? 'bg-emerald-500/10 text-emerald-400' :
@@ -220,7 +220,7 @@ export default function OutputPage() {
                   </span>
                 )}
                 {file.agentUsed && (
-                  <span className="text-[10px] px-2 py-1 rounded-md bg-white/[0.04] text-white/30 font-mono">
+                  <span className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-400 font-mono">
                     {file.agentUsed.replace(' âš  low-confidence', '')}
                   </span>
                 )}
@@ -231,7 +231,7 @@ export default function OutputPage() {
                 <div className="mb-5 flex items-start gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.06]">
                   <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-200">Human review recommended</p>
+                    <p className="text-sm font-semibold text-amber-700">Human review recommended</p>
                     <p className="text-xs text-amber-300/60 mt-1">
                       AI confidence was below the 85% threshold for this file. The migration has been completed but 
                       some patterns may not be accurately converted. Please review the generated code before committing.
@@ -248,7 +248,7 @@ export default function OutputPage() {
                       <AlertCircle className="h-4 w-4 text-red-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-red-200">{err.title}</p>
+                      <p className="text-sm font-semibold text-red-700">{err.title}</p>
                       <p className="text-xs text-red-300/70 mt-1 leading-relaxed">{err.detail}</p>
                     </div>
                   </div>
@@ -262,7 +262,7 @@ export default function OutputPage() {
               {file.status === 'complete' && (
                 <div className="space-y-6">
                   {/* Section selector */}
-                  <div className="flex gap-1 p-1 rounded-lg bg-white/[0.03] border border-white/[0.06] w-fit">
+                  <div className="flex gap-1 p-1 rounded-lg bg-slate-100 border border-slate-200 w-fit">
                     {[
                       { key: 'code', icon: FileCode2, label: 'Code' },
                       { key: 'heal', icon: Wand2, label: 'Self-Heal' },
@@ -275,8 +275,8 @@ export default function OutputPage() {
                         className={cn(
                           'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
                           activeSection === key
-                            ? 'bg-violet-600/30 text-violet-200 border border-violet-500/30'
-                            : 'text-white/35 hover:text-white/60'
+                            ? 'bg-violet-600/30 text-violet-700 border border-violet-500/30'
+                            : 'text-slate-500 hover:text-slate-700'
                         )}
                       >
                         <Icon className="h-3 w-3" />
@@ -329,10 +329,10 @@ export default function OutputPage() {
       {result.outputFolder && result.outputFolder.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center gap-2 mb-3">
-            <FolderOpen className="h-4 w-4 text-white/30" />
-            <span className="text-xs font-semibold text-white/30 uppercase tracking-wider">Server Output</span>
+            <FolderOpen className="h-4 w-4 text-slate-400" />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Server Output</span>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <FolderTree nodes={result.outputFolder} label="workspace / OUTPUT â€” migrated files" />
           </div>
         </div>

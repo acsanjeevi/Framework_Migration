@@ -11,15 +11,26 @@ const app: Application = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Allow the React dev server (port 3000) and any additional origins in
-// CORS_ORIGIN env var (comma-separated). Defaults to localhost:3000.
-const CORS_ORIGINS = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+// Allow the React dev server on any localhost port (3000-3999) plus any
+// explicit origins in CORS_ORIGIN env var (comma-separated).
+const EXPLICIT_ORIGINS = (process.env.CORS_ORIGIN ?? '')
   .split(',')
-  .map((o) => o.trim());
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: CORS_ORIGINS,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow any localhost / 127.0.0.1 origin regardless of port
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      // Allow explicitly configured origins
+      if (EXPLICIT_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' is not allowed`));
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false,

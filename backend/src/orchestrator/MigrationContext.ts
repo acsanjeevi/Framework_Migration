@@ -18,13 +18,18 @@ export interface MigrationContext {
   detectedFramework?: string;
   /** Set by Step 2 */
   detectedPattern?: string;
-  /** Set by Step 3 — the migrated Playwright code */
+  /** Set by Step 3 — the primary migrated code (tests/ spec file content) */
   migratedCode?: string;
+  /**
+   * Set by Step 3 — full POM-structured output files:
+   * tests/, pages/, locators/, test-data/, utils/, config/, fixtures/, constants/
+   */
+  migratedFiles?: Array<{ path: string; content: string }>;
   /** Set by Step 3 — overall LLM confidence score (0–1) */
   confidence?: number;
   /** Set by Step 3 — model ID that produced the final output (e.g. 'claude-haiku-4-5', 'gpt-4o-mini') */
   agentUsed?: string;
-  /** Set by Step 4 — annotated code with [SELF-HEAL] comments */
+  /** Set by Step 4 — annotated code with [SELF-HEAL] comments (applied to tests/ spec) */
   healedCode?: string;
   /** Set by Step 5 — generated CI/CD YAML string */
   cicdYaml?: string;

@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import archiver from 'archiver';
-import { assignUploadSession, handleUpload } from '../middleware/upload.middleware';
+import { assignUploadSession, handleUpload, UPLOAD_CONFIG } from '../middleware/upload.middleware';
 import { validateUploadBody } from '../middleware/validation.middleware';
 import { enqueueJob, migrationQueue, MigrationJobData } from '../../queue/MigrationQueue';
 import { ResultStore } from '../../store/ResultStore';
-import { extractZipToInput, copyFilesToInput, getOutputTree, FolderNode } from '../../workspace/WorkspaceManager';
+import { extractZipToInput, copyFilesToInput, getOutputTree, OUTPUT_ROOT, FolderNode } from '../../workspace/WorkspaceManager';
 
 const router = Router();
 
@@ -24,7 +25,10 @@ router.post(
     const uploadedFiles = req.files as Express.Multer.File[];
 
     if (!uploadedFiles || uploadedFiles.length === 0) {
-      res.status(400).json({ status: 'error', message: 'No files uploaded' });
+      res.status(400).json({
+        status: 'error',
+        message: `No supported files received. Allowed extensions: ${UPLOAD_CONFIG.allowedExtensions.join(', ')}`,
+      });
       return;
     }
 
@@ -69,7 +73,7 @@ router.post(
       skippedFiles       = result.skippedFiles;
       extractedFileCount = result.extractedFiles.length;
       processFiles       = result.extractedFiles.map((rel) => ({
-        fileName: path.basename(rel),
+        fileName: rel,                              // keep relative path to avoid name collisions
         filePath: path.join(result.inputDir, rel),
       }));
     } else {
@@ -153,10 +157,17 @@ router.get('/status/:jobId', async (req: Request, res: Response): Promise<void> 
 
 /**
  * GET /api/migrate/result/:jobId
- * Streams a ZIP archive containing:
- *   - migrated/<originalName>.ts  (healedCode per file)
- *   - cicd/<platform-filename>    (cicdYaml, deduplicated)
- *   - summary.json                (same payload as /summary)
+ * Streams a ZIP archive with the full POM-structured output:
+ *   - tests/          (migrated + self-healed test specs)
+ *   - pages/          (page object classes)
+ *   - locators/       (centralized selectors)
+ *   - test-data/      (test data files)
+ *   - utils/          (helper utilities)
+ *   - config/         (environment config)
+ *   - fixtures/       (setup/teardown hooks)
+ *   - constants/      (global constants)
+ *   - cicd/           (CI/CD platform config)
+ *   - summary.json    (migration summary)
  */
 router.get('/result/:jobId', (req: Request, res: Response): void => {
   const { jobId } = req.params;
@@ -182,7 +193,7 @@ router.get('/result/:jobId', (req: Request, res: Response): void => {
   const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const fileCount = completedFiles.length;
   const platform = batch.config.cicdPlatform;
-  const zipName = `playwright-migration_${dateStr}_${fileCount}-files_${platform}.zip`;
+  const zipName = `playwright-pom-migration_${dateStr}_${fileCount}-files_${platform}.zip`;
 
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
@@ -190,27 +201,33 @@ router.get('/result/:jobId', (req: Request, res: Response): void => {
   const archive = archiver('zip', { zlib: { level: 6 } });
   archive.on('error', (err) => {
     console.error('[result] Archive error:', err.message);
-    // Headers already sent; cannot send JSON error
   });
   archive.pipe(res);
 
-  // 1. Migrated source files
-  for (const file of completedFiles) {
-    if (file.healedCode) {
-      archive.append(file.healedCode, { name: `migrated/${file.fileName}` });
+  // 1. Add all POM output files from workspace/OUTPUT/<jobId>
+  const outputDir = path.join(OUTPUT_ROOT, jobId);
+  if (fs.existsSync(outputDir)) {
+    // Add directory contents recursively, preserving the POM folder structure
+    archive.directory(outputDir, false);
+  } else {
+    // Fallback: reconstruct from in-memory ResultStore (legacy / no-workspace mode)
+    for (const file of completedFiles) {
+      if (file.healedCode) {
+        archive.append(file.healedCode, { name: `tests/${file.fileName}` });
+      }
+    }
+
+    // CI/CD config — deduplicate
+    const cicdSeen = new Set<string>();
+    for (const file of completedFiles) {
+      if (file.cicdYaml && file.cicdFileName && !cicdSeen.has(file.cicdFileName)) {
+        cicdSeen.add(file.cicdFileName);
+        archive.append(file.cicdYaml, { name: `cicd/${file.cicdFileName}` });
+      }
     }
   }
 
-  // 2. CI/CD config — deduplicate (all files share the same platform config)
-  const cicdSeen = new Set<string>();
-  for (const file of completedFiles) {
-    if (file.cicdYaml && file.cicdFileName && !cicdSeen.has(file.cicdFileName)) {
-      cicdSeen.add(file.cicdFileName);
-      archive.append(file.cicdYaml, { name: `cicd/${file.cicdFileName}` });
-    }
-  }
-
-  // 3. Summary JSON
+  // 2. Summary JSON (always included)
   const summary = buildSummary(jobId, batch);
   archive.append(JSON.stringify(summary, null, 2), { name: 'summary.json' });
 

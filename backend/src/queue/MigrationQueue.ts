@@ -155,14 +155,24 @@ async function processJobData(data: MigrationJobData): Promise<Array<{ fileName:
     if (result.overallStatus === 'complete') {
       ResultStore.addFileResult(batchId, ResultStore.fromContext(ctx, 'complete', cicdFileName));
 
-      // Write migrated files to workspace/OUTPUT/<batchId>
+      // Write POM-structured output files to workspace/OUTPUT/<batchId>
       const outputFiles: Array<{ name: string; content: string }> = [];
-      if (result.output.healedCode) {
-        outputFiles.push({ name: `migrated/${fileEntry.fileName}`, content: result.output.healedCode });
+
+      if (ctx.migratedFiles && ctx.migratedFiles.length > 0) {
+        // Write all POM files (tests/, pages/, locators/, test-data/, utils/, config/, fixtures/, constants/)
+        for (const pomFile of ctx.migratedFiles) {
+          outputFiles.push({ name: pomFile.path, content: pomFile.content });
+        }
+      } else if (result.output.healedCode) {
+        // Fallback: write healed code under tests/ if no POM structure available
+        outputFiles.push({ name: `tests/${fileEntry.fileName}`, content: result.output.healedCode });
       }
+
+      // Always write the CI/CD config
       if (result.output.cicdYaml && cicdFileName) {
         outputFiles.push({ name: `cicd/${cicdFileName}`, content: result.output.cicdYaml });
       }
+
       if (outputFiles.length > 0) {
         try { writeOutputFiles(batchId, outputFiles); } catch (e) {
           console.warn('[queue] Could not write output files to workspace:', e);

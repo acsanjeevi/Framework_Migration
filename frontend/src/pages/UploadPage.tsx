@@ -47,12 +47,12 @@ export default function UploadPage() {
     <div className="min-h-full p-6 lg:p-8">
       {/* Hero header */}
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium mb-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-600 text-xs font-medium mb-4">
           <Sparkles className="h-3 w-3" />
           AI-Powered Test Migration
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">Migrate Your Test Suite</h1>
-        <p className="text-white/40 mt-2 text-sm max-w-xl">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Migrate Your Test Suite</h1>
+        <p className="text-slate-500 mt-2 text-sm max-w-xl">
           Transform Cypress, Selenium, WebdriverIO and more into production-ready Playwright TypeScript â€” 
           with self-healing selectors, CI/CD pipelines and coverage enforcement.
         </p>
@@ -61,13 +61,13 @@ export default function UploadPage() {
       {/* Feature pills */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {FEATURES.map(({ icon: Icon, label, desc }) => (
-          <div key={label} className="flex items-start gap-2.5 p-3 rounded-xl border border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+          <div key={label} className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
             <div className="h-7 w-7 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
-              <Icon className="h-3.5 w-3.5 text-violet-400" />
+              <Icon className="h-3.5 w-3.5 text-violet-600" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white/80">{label}</p>
-              <p className="text-[10px] text-white/35 mt-0.5 leading-snug">{desc}</p>
+              <p className="text-xs font-semibold text-slate-700">{label}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{desc}</p>
             </div>
           </div>
         ))}
@@ -75,10 +75,10 @@ export default function UploadPage() {
 
       {/* Mock mode banner */}
       {mockMode && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-300 mb-6">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-50 px-4 py-3 text-sm text-amber-600 mb-6">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
           <span>
-            <strong className="text-amber-200">Demo Mode Active</strong> â€” 3 sample test files will be migrated using 
+            <strong className="text-amber-700">Demo Mode Active</strong> â€” 3 sample test files will be migrated using 
             simulated AI agents. No real API calls are made.
           </span>
         </div>
@@ -88,8 +88,8 @@ export default function UploadPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
         {/* Configuration â€” 2 cols */}
         <div className="lg:col-span-2 space-y-1">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Configuration</p>
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-5 space-y-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Configuration</p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-5">
             <FrameworkSelector value={sourceFramework} onChange={setSourceFramework} />
             <TargetLanguageSelector value={targetLanguage} onChange={setTargetLanguage} />
             <CICDSelector value={cicdPlatform} onChange={setCicdPlatform} />
@@ -98,12 +98,12 @@ export default function UploadPage() {
 
         {/* File upload â€” 3 cols */}
         <div className="lg:col-span-3">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Test Files</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Test Files</p>
           {mockMode ? (
-            <div className="flex flex-col items-center justify-center h-48 rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] text-center">
-              <Layers className="h-8 w-8 text-white/20 mb-2" />
-              <p className="text-sm text-white/40">File upload disabled in demo mode</p>
-              <p className="text-xs text-white/25 mt-1">3 sample Cypress files will be used automatically</p>
+            <div className="flex flex-col items-center justify-center h-48 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center">
+              <Layers className="h-8 w-8 text-slate-300 mb-2" />
+              <p className="text-sm text-slate-500">File upload disabled in demo mode</p>
+              <p className="text-xs text-slate-400 mt-1">3 sample Cypress files will be used automatically</p>
             </div>
           ) : (
             <FileUploadZone files={files} onChange={setFiles} />
@@ -121,7 +121,7 @@ export default function UploadPage() {
           onSubmit={handleSubmit}
         />
         {canSubmit && !loading && (
-          <span className="flex items-center gap-1 text-xs text-white/30">
+          <span className="flex items-center gap-1 text-xs text-slate-400">
             <ArrowRight className="h-3 w-3" />
             {mockMode ? '3 demo files' : `${files.length} file${files.length !== 1 ? 's' : ''} ready`}
           </span>

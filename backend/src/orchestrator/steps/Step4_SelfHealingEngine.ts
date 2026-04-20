@@ -40,6 +40,17 @@ export class Step4_SelfHealingEngine {
 
       ctx.healedCode = result.annotatedCode;
 
+      // 4. Update the tests/ entry in migratedFiles with the healed code
+      if (ctx.migratedFiles && ctx.migratedFiles.length > 0) {
+        const testIdx = ctx.migratedFiles.findIndex((f) => f.path.startsWith('tests/'));
+        if (testIdx >= 0) {
+          ctx.migratedFiles[testIdx] = {
+            ...ctx.migratedFiles[testIdx],
+            content: result.annotatedCode,
+          };
+        }
+      }
+
       return makePassResult(
         this.stepNumber,
         this.stepName,
@@ -51,6 +62,7 @@ export class Step4_SelfHealingEngine {
           selectorTypes: [...new Set(selectors.map((s) => s.type))],
           generatedBy: ctx.agentUsed ?? 'n/a',
           confidence: ctx.confidence != null ? `${(ctx.confidence * 100).toFixed(0)}%` : 'n/a',
+          pomFilesCount: ctx.migratedFiles?.length ?? 0,
         },
         Date.now() - start
       );

@@ -18,7 +18,7 @@ const ALLOWED_EXTENSIONS = new Set(['.ts', '.js', '.java', '.py', '.feature', '.
 
 export const UPLOAD_CONFIG = {
   maxFileSizeBytes: 5 * 1024 * 1024 * 1024, // 5 GB
-  maxFiles: 50,
+  maxFiles: 200,
   allowedExtensions: Array.from(ALLOWED_EXTENSIONS),
 };
 
@@ -46,11 +46,8 @@ function fileFilter(
   if (ALLOWED_EXTENSIONS.has(ext)) {
     cb(null, true);
   } else {
-    cb(
-      new Error(
-        `File type '${ext}' is not allowed. Allowed types: ${UPLOAD_CONFIG.allowedExtensions.join(', ')}`
-      )
-    );
+    // Skip unsupported types silently — do NOT reject the whole upload
+    cb(null, false);
   }
 }
 
